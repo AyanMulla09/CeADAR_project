@@ -1,0 +1,41 @@
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Log files
+*.log
+
+# Output and cache folders
+cache/
+pdf_cache/
+output/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
+
+# Ignore research pipeline logs
+research_pipeline.log
+
+# Ignore environment files
+.env
+venv/
+
+# Ignore other unnecessary files
+*.bak
+*.swp
+
+# Ignore test and temp files
+*.tmp
+*.test
+
+# Ignore college PDFs
+c:/CeADAR/College/*.pdf
