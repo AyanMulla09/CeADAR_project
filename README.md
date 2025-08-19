@@ -4,7 +4,7 @@
 ## Overview
 This is a comprehensive research paper analysis pipeline developed for CeADAR (Centre for Applied Data Analytics Research) using ReACT (Reasoning and Acting) agents and LangChain. The system automates the entire research paper discovery, filtering, analysis, and gap identification process with intelligent agents working collaboratively to provide comprehensive research insights.
 
-## Key Features
+## 🌟 Key Features
 
 - **Multi-Agent ReACT Architecture**: Specialized agents for each pipeline stage using reasoning and acting paradigm
 - **Comprehensive Paper Discovery**: Intelligent search query generation and ArXiv integration
@@ -13,6 +13,7 @@ This is a comprehensive research paper analysis pipeline developed for CeADAR (C
 - **RAG System**: ElasticSearch integration with semantic embeddings for retrieval
 - **Parallel Processing**: Concurrent execution for improved performance
 - **Interactive & Command-Line Modes**: Flexible usage options
+- **Streamlit Web Interface**: Modern, user-friendly web frontend
 - **Comprehensive Export**: JSON and CSV output formats
 - **Detailed Logging**: Complete pipeline execution tracking
 
@@ -59,6 +60,9 @@ react_agents/
 ├── output/                     # Analysis results (JSON, CSV)
 ├── pdf_cache/                  # Downloaded PDF files
 ├── main.py                     # Main application entry point
+├── streamlit_app.py           # Streamlit web interface
+├── run_streamlit.py           # Streamlit launcher script
+├── run_streamlit.ps1          # PowerShell launcher script
 ├── config.py                   # Configuration settings
 └── requirements.txt            # Python dependencies
 ```
@@ -103,7 +107,27 @@ docker stop elasticsearch
 
 ## 📋 Usage
 
-### Command Line Mode
+### 🌐 Streamlit Web Interface (Recommended)
+Launch the modern web interface:
+```sh
+# Using Python launcher
+python run_streamlit.py
+
+# Or using PowerShell (Windows)
+.\run_streamlit.ps1
+
+# Or directly with streamlit
+streamlit run streamlit_app.py
+```
+
+The web interface provides:
+- **Interactive Pipeline Execution**: Run research analysis with real-time progress
+- **Configuration Management**: Adjust models, parameters, and settings
+- **Results Visualization**: Charts, metrics, and analytics
+- **History Management**: View and manage previous results
+- **Export Options**: Download JSON and CSV results
+
+### 💻 Command Line Mode
 ```sh
 # Run full pipeline with a research topic
 python main.py "Machine Learning for Climate Change Mitigation"
@@ -112,7 +136,7 @@ python main.py "Machine Learning for Climate Change Mitigation"
 python main.py "Sustainable AI and Energy Efficiency"
 ```
 
-### Interactive Mode
+### 🔧 Interactive Terminal Mode
 ```sh
 # Run without arguments for interactive menu
 python main.py
