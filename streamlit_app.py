@@ -85,6 +85,12 @@ if 'pipeline_results' not in st.session_state:
     st.session_state.pipeline_results = None
 if 'progress_queue' not in st.session_state:
     st.session_state.progress_queue = queue.Queue()
+if 'stage_outputs' not in st.session_state:
+    st.session_state.stage_outputs = {}
+if 'current_stage' not in st.session_state:
+    st.session_state.current_stage = None
+if 'pipeline_status' not in st.session_state:
+    st.session_state.pipeline_status = "idle"
 
 def main():
     """Main Streamlit application"""
@@ -198,6 +204,26 @@ def run_pipeline_tab():
     
     st.header("🚀 Research Pipeline Execution")
     
+    # Pipeline status indicator
+    if st.session_state.pipeline_status != "idle":
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            if st.session_state.current_stage:
+                st.markdown(f"**Current Stage:** {st.session_state.current_stage}")
+        with col2:
+            if st.session_state.pipeline_status == "running":
+                st.markdown("🔄 **Status:** Running")
+            elif st.session_state.pipeline_status == "completed":
+                st.markdown("✅ **Status:** Completed")
+            elif st.session_state.pipeline_status == "error":
+                st.markdown("❌ **Status:** Error")
+        with col3:
+            if st.session_state.stage_outputs:
+                completed_stages = sum(1 for stage in st.session_state.stage_outputs.values() 
+                                     if stage.get('status') == 'completed')
+                total_stages = len(st.session_state.stage_outputs)
+                st.markdown(f"**Progress:** {completed_stages}/{total_stages}")
+    
     # Research topic input
     col1, col2 = st.columns([3, 1])
     
@@ -205,18 +231,43 @@ def run_pipeline_tab():
         research_topic = st.text_input(
             "Research Topic",
             placeholder="e.g., Machine Learning for Climate Change Mitigation",
-            help="Enter your research topic. Be specific for better results."
+            help="Enter your research topic. Be specific for better results.",
+            disabled=st.session_state.pipeline_running
         )
     
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
-        run_button = st.button("🔬 Run Analysis", type="primary", disabled=st.session_state.pipeline_running)
+        if st.session_state.pipeline_running:
+            if st.button("� Stop Pipeline", type="secondary"):
+                st.session_state.pipeline_running = False
+                st.session_state.pipeline_status = "stopped"
+                st.session_state.current_stage = "Pipeline Stopped"
+                st.rerun()
+        else:
+            run_button = st.button("🔬 Run Analysis", type="primary")
+    
+    # Control buttons
+    if not st.session_state.pipeline_running:
+        col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+        
+        with col_btn1:
+            if st.button("🧹 Clear Results"):
+                st.session_state.pipeline_results = None
+                st.session_state.stage_outputs = {}
+                st.session_state.pipeline_status = "idle"
+                st.session_state.current_stage = None
+                st.rerun()
+        
+        with col_btn2:
+            if st.session_state.stage_outputs:
+                if st.button("🔄 Refresh Display"):
+                    st.rerun()
     
     # Example topics
     st.markdown("**💡 Example Topics:**")
     example_topics = [
         "Sustainable AI and Energy Efficiency",
-        "Machine Learning for Healthcare Diagnostics",
+        "Machine Learning for Healthcare Diagnostics", 
         "Quantum Machine Learning Applications",
         "AI Ethics in Autonomous Systems",
         "Deep Learning for Climate Modeling"
@@ -225,7 +276,8 @@ def run_pipeline_tab():
     cols = st.columns(len(example_topics))
     for i, topic in enumerate(example_topics):
         with cols[i]:
-            if st.button(topic, key=f"example_{i}"):
+            if st.button(topic, key=f"example_{i}", disabled=st.session_state.pipeline_running):
+                research_topic = topic
                 st.session_state.selected_topic = topic
                 st.rerun()
     
@@ -237,54 +289,270 @@ def run_pipeline_tab():
     # Run pipeline
     if run_button and research_topic:
         st.session_state.pipeline_running = True
+        st.session_state.pipeline_status = "starting"
         run_pipeline_async(research_topic, Config.MAX_PER_QUERY)
     
     # Display progress
-    if st.session_state.pipeline_running:
-        display_pipeline_progress()
+    display_pipeline_progress()
+
+def run_pipeline_with_stages(topic: str, max_per_query: int):
+    """Run the pipeline with real-time stage updates"""
+    
+    # Reset stage outputs
+    st.session_state.stage_outputs = {}
+    st.session_state.current_stage = None
+    st.session_state.pipeline_status = "running"
+    
+    # Initialize agents
+    st.session_state.current_stage = "Initializing Agents"
+    st.session_state.stage_outputs["initialization"] = {
+        "status": "running",
+        "message": "Setting up ReACT agents...",
+        "details": []
+    }
+    
+    try:
+        agents = initialize_all_agents()
+        orchestrator = agents["orchestrator"]
+        
+        st.session_state.stage_outputs["initialization"] = {
+            "status": "completed",
+            "message": f"✅ Successfully initialized {len(agents)} agents",
+            "details": list(agents.keys())
+        }
+        
+        # Validate pipeline
+        st.session_state.current_stage = "Validating Pipeline"
+        validation = orchestrator.validate_pipeline()
+        
+        if not validation["valid"]:
+            st.session_state.stage_outputs["validation"] = {
+                "status": "error",
+                "message": "❌ Pipeline validation failed",
+                "details": validation
+            }
+            st.session_state.pipeline_status = "error"
+            return {"error": "Pipeline validation failed", "details": validation}
+        
+        st.session_state.stage_outputs["validation"] = {
+            "status": "completed",
+            "message": "✅ Pipeline validation successful",
+            "details": validation
+        }
+        
+        # Prepare input data
+        input_data = {
+            "topic": topic,
+            "max_per_query": max_per_query,
+            "config": Config.to_dict()
+        }
+        
+        # Execute pipeline stages one by one
+        pipeline_stages = [
+            ("research_topic_agent", "🔍 Analyzing Research Topic", "Elaborating topic and generating search queries"),
+            ("paper_search_agent", "📚 Searching for Papers", "Searching ArXiv for relevant papers"),
+            ("filter_agent", "🔽 Filtering Abstracts", "Filtering papers based on abstract relevance"),
+            ("description_gen_agent", "📝 Generating Descriptions", "Creating detailed paper descriptions"),
+            ("download_extract_agent", "⬇️ Downloading PDFs", "Downloading and extracting PDF content"),
+            ("fulltext_filter_agent", "� Full-text Analysis", "Performing detailed relevance analysis"),
+            ("gap_generation_agent", "🔬 Gap Analysis", "Analyzing research gaps addressed by papers"),
+            ("embedding_indexing_agent", "💾 Indexing Papers", "Creating searchable knowledge base")
+        ]
+        
+        results = {"status": "running", "pipeline_results": {}}
+        
+        for stage_name, stage_title, stage_description in pipeline_stages:
+            st.session_state.current_stage = stage_title
+            st.session_state.stage_outputs[stage_name] = {
+                "status": "running",
+                "message": f"🔄 {stage_description}...",
+                "details": []
+            }
+            
+            try:
+                # Run the individual stage
+                stage_result = orchestrator.run_single_step(stage_name, input_data)
+                
+                if stage_result and "error" not in stage_result:
+                    st.session_state.stage_outputs[stage_name] = {
+                        "status": "completed",
+                        "message": f"✅ {stage_description} completed",
+                        "details": stage_result,
+                        "summary": extract_stage_summary(stage_name, stage_result)
+                    }
+                    results["pipeline_results"][stage_name] = stage_result
+                    
+                    # Update input_data with results for next stage
+                    input_data.update(stage_result)
+                else:
+                    st.session_state.stage_outputs[stage_name] = {
+                        "status": "error",
+                        "message": f"❌ {stage_description} failed",
+                        "details": stage_result.get("error", "Unknown error") if stage_result else "No result returned"
+                    }
+                    
+            except Exception as e:
+                st.session_state.stage_outputs[stage_name] = {
+                    "status": "error",
+                    "message": f"❌ {stage_description} failed: {str(e)}",
+                    "details": str(e)
+                }
+        
+        # Final results
+        results["status"] = "completed"
+        st.session_state.pipeline_status = "completed"
+        st.session_state.current_stage = "Pipeline Completed"
+        
+        return results
+        
+    except Exception as e:
+        st.session_state.pipeline_status = "error"
+        st.session_state.current_stage = f"Error: {str(e)}"
+        return {"error": str(e)}
+
+def extract_stage_summary(stage_name: str, stage_result: dict):
+    """Extract key metrics from stage results for display"""
+    summary = {}
+    
+    if stage_name == "research_topic_agent":
+        summary = {
+            "topic": stage_result.get("original_topic", "N/A"),
+            "queries_generated": stage_result.get("num_queries_generated", 0),
+            "elaboration_length": len(stage_result.get("topic_elaboration", ""))
+        }
+    elif stage_name == "paper_search_agent":
+        summary = {
+            "papers_found": stage_result.get("total_papers_collected", 0),
+            "successful_queries": stage_result.get("successful_queries", 0),
+            "failed_queries": stage_result.get("failed_queries", 0)
+        }
+    elif stage_name == "filter_agent":
+        stats = stage_result.get("filtering_statistics", {})
+        summary = {
+            "papers_processed": stats.get("total_papers", 0),
+            "papers_relevant": stats.get("relevant_count", 0),
+            "relevance_rate": f"{stats.get('relevance_rate', 0):.1%}"
+        }
+    elif stage_name == "download_extract_agent":
+        final_stats = stage_result.get("final_stats", {})
+        summary = {
+            "pdfs_downloaded": final_stats.get("downloaded_pdfs", 0),
+            "texts_extracted": final_stats.get("extracted_papers", 0),
+            "total_words": f"{final_stats.get('total_content_words', 0):,}"
+        }
+    elif stage_name == "fulltext_filter_agent":
+        stats = stage_result.get("fulltext_filtering_stats", {})
+        summary = {
+            "papers_analyzed": stats.get("total_papers", 0),
+            "papers_relevant": stats.get("relevant_count", 0),
+            "relevance_rate": f"{stats.get('relevance_rate', 0):.1%}"
+        }
+    elif stage_name == "gap_generation_agent":
+        stats = stage_result.get("gap_analysis_stats", {})
+        summary = {
+            "papers_analyzed": stats.get("total_papers", 0),
+            "successful_analysis": stats.get("successful", 0),
+            "success_rate": f"{stats.get('success_rate', 0):.1%}"
+        }
+    elif stage_name == "embedding_indexing_agent":
+        summary = {
+            "papers_indexed": stage_result.get("unique_papers_indexed", 0),
+            "document_chunks": stage_result.get("total_chunks", 0),
+            "rag_ready": "✅" if stage_result.get("rag_system_ready") else "❌"
+        }
+    
+    return summary
 
 def run_pipeline_async(topic: str, max_per_query: int):
-    """Run the pipeline asynchronously"""
-    
-    progress_bar = st.progress(0)
-    status_text = st.empty()
+    """Run the pipeline asynchronously with real-time updates"""
     
     def pipeline_runner():
         try:
-            # Update progress
-            progress_bar.progress(10)
-            status_text.text("🔄 Initializing agents...")
-            
-            # Run the pipeline
-            results = run_research_pipeline(topic, max_per_query)
-            
-            progress_bar.progress(100)
-            status_text.text("✅ Pipeline completed successfully!")
-            
-            # Store results
+            results = run_pipeline_with_stages(topic, max_per_query)
             st.session_state.pipeline_results = results
             st.session_state.pipeline_running = False
             
-            time.sleep(2)
-            st.rerun()
-            
         except Exception as e:
             st.session_state.pipeline_running = False
-            st.error(f"❌ Pipeline failed: {str(e)}")
+            st.session_state.pipeline_status = "error"
+            st.session_state.current_stage = f"Error: {str(e)}"
     
     # Start pipeline in a separate thread
     thread = threading.Thread(target=pipeline_runner)
     thread.start()
 
 def display_pipeline_progress():
-    """Display real-time pipeline progress"""
+    """Display real-time pipeline progress with stage outputs"""
     
-    st.markdown('<div class="info-box">🔄 Pipeline is running... Please wait for completion.</div>', 
-                unsafe_allow_html=True)
+    if st.session_state.pipeline_status == "idle":
+        return
     
-    # Auto-refresh every 5 seconds
-    time.sleep(5)
-    st.rerun()
+    # Current status
+    st.markdown("### 🔄 Pipeline Progress")
+    
+    if st.session_state.current_stage:
+        st.markdown(f"**Current Stage:** {st.session_state.current_stage}")
+    
+    # Progress indicator
+    if st.session_state.pipeline_status == "running":
+        st.markdown('<div class="info-box">🔄 Pipeline is running... Please wait for completion.</div>', 
+                   unsafe_allow_html=True)
+    elif st.session_state.pipeline_status == "completed":
+        st.markdown('<div class="success-box">✅ Pipeline completed successfully!</div>', 
+                   unsafe_allow_html=True)
+    elif st.session_state.pipeline_status == "error":
+        st.markdown('<div class="error-box">❌ Pipeline encountered an error.</div>', 
+                   unsafe_allow_html=True)
+    
+    # Stage-by-stage output
+    if st.session_state.stage_outputs:
+        st.markdown("### 📋 Stage Details")
+        
+        for stage_name, stage_data in st.session_state.stage_outputs.items():
+            with st.expander(f"{stage_data['message']}", expanded=(stage_data['status'] == 'running')):
+                
+                # Status indicator
+                if stage_data['status'] == 'running':
+                    st.markdown("🔄 **Status:** Running")
+                    st.spinner("Processing...")
+                elif stage_data['status'] == 'completed':
+                    st.markdown("✅ **Status:** Completed")
+                elif stage_data['status'] == 'error':
+                    st.markdown("❌ **Status:** Error")
+                    st.error(f"Error: {stage_data.get('details', 'Unknown error')}")
+                
+                # Summary metrics
+                if 'summary' in stage_data and stage_data['summary']:
+                    st.markdown("**📊 Summary:**")
+                    cols = st.columns(len(stage_data['summary']))
+                    for i, (key, value) in enumerate(stage_data['summary'].items()):
+                        with cols[i]:
+                            st.metric(key.replace('_', ' ').title(), value)
+                
+                # Detailed output
+                if stage_data['status'] == 'completed' and 'details' in stage_data:
+                    with st.expander("🔍 Detailed Output", expanded=False):
+                        if isinstance(stage_data['details'], dict):
+                            # Show key information in a more readable format
+                            for key, value in stage_data['details'].items():
+                                if key in ['papers', 'papers_with_gap_analysis'] and isinstance(value, list):
+                                    st.markdown(f"**{key.replace('_', ' ').title()}:** {len(value)} items")
+                                    if value and len(value) > 0:
+                                        # Show first few items
+                                        for i, item in enumerate(value[:3]):
+                                            if isinstance(item, dict) and 'title' in item:
+                                                st.markdown(f"• {item['title']}")
+                                        if len(value) > 3:
+                                            st.markdown(f"... and {len(value) - 3} more")
+                                elif isinstance(value, (str, int, float, bool)):
+                                    st.markdown(f"**{key.replace('_', ' ').title()}:** {value}")
+                        else:
+                            st.json(stage_data['details'])
+    
+    # Auto-refresh for running pipeline
+    if st.session_state.pipeline_status == "running":
+        time.sleep(2)
+        st.rerun()
 
 def results_tab():
     """Tab for displaying pipeline results"""
