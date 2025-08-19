@@ -175,7 +175,7 @@ def check_system_status():
     # Check ElasticSearch
     try:
         from elasticsearch import Elasticsearch
-        es = Elasticsearch([Config.ELASTICSEARCH_HOST])
+        es = Elasticsearch([f"http://{Config.ELASTICSEARCH_HOST}"], verify_certs=False, request_timeout=5)
         if es.ping():
             es_status = "✅ Connected"
             es_color = "green"
@@ -203,6 +203,9 @@ def run_pipeline_tab():
     """Tab for running the research pipeline"""
     
     st.header("🚀 Research Pipeline Execution")
+    
+    # Initialize run_button to avoid UnboundLocalError
+    run_button = False
     
     # Pipeline status indicator
     if st.session_state.pipeline_status != "idle":
@@ -287,29 +290,17 @@ def run_pipeline_tab():
         st.text_input("Research Topic", value=research_topic, key="topic_display", disabled=True)
     
     # Run pipeline
-    if run_button and research_topic:
-        st.session_state.pipeline_running = True
-        st.session_state.pipeline_status = "starting"
+    if run_button and research_topic and not st.session_state.get('pipeline_running', False):
+        st.session_state.selected_topic = research_topic  # Store topic for tracking
         run_pipeline_async(research_topic, Config.MAX_PER_QUERY)
     
     # Display progress
     display_pipeline_progress()
 
 def run_pipeline_with_stages(topic: str, max_per_query: int):
-    """Run the pipeline with real-time stage updates"""
-    
-    # Reset stage outputs
-    st.session_state.stage_outputs = {}
-    st.session_state.current_stage = None
-    st.session_state.pipeline_status = "running"
-    
-    # Initialize agents
-    st.session_state.current_stage = "Initializing Agents"
-    st.session_state.stage_outputs["initialization"] = {
-        "status": "running",
-        "message": "Setting up ReACT agents...",
-        "details": []
-    }
+    """Simplified pipeline runner - delegates to main pipeline function"""
+    # This function is kept for compatibility but now just calls the main pipeline
+    return run_research_pipeline(topic, max_per_query)
     
     try:
         agents = initialize_all_agents()
@@ -468,24 +459,78 @@ def run_pipeline_async(topic: str, max_per_query: int):
     
     def pipeline_runner():
         try:
-            results = run_pipeline_with_stages(topic, max_per_query)
-            st.session_state.pipeline_results = results
-            st.session_state.pipeline_running = False
+            # Don't use session state directly in thread
+            results = run_research_pipeline(topic, max_per_query)
             
+            # Use a simple flag file to signal completion
+            output_dir = Path(Config.OUTPUT_DIR)
+            signal_file = output_dir / f"pipeline_complete_{topic.replace(' ', '_')}.json"
+            
+            with open(signal_file, 'w') as f:
+                json.dump({
+                    "status": "completed",
+                    "results": results,
+                    "timestamp": time.time()
+                }, f)
+                
         except Exception as e:
-            st.session_state.pipeline_running = False
-            st.session_state.pipeline_status = "error"
-            st.session_state.current_stage = f"Error: {str(e)}"
+            # Signal error
+            output_dir = Path(Config.OUTPUT_DIR)
+            signal_file = output_dir / f"pipeline_complete_{topic.replace(' ', '_')}.json"
+            
+            with open(signal_file, 'w') as f:
+                json.dump({
+                    "status": "error",
+                    "error": str(e),
+                    "timestamp": time.time()
+                }, f)
     
-    # Start pipeline in a separate thread
-    thread = threading.Thread(target=pipeline_runner)
-    thread.start()
+    # Start pipeline in a separate thread (only if not already running)
+    if not st.session_state.get('pipeline_running', False):
+        thread = threading.Thread(target=pipeline_runner)
+        thread.daemon = True  # Daemon thread will die when main program exits
+        thread.start()
+        
+        # Update session state to indicate pipeline started
+        st.session_state.pipeline_running = True
+        st.session_state.pipeline_status = "running"
+        st.session_state.current_stage = "Pipeline Starting..."
 
 def display_pipeline_progress():
     """Display real-time pipeline progress with stage outputs"""
     
     if st.session_state.pipeline_status == "idle":
         return
+    
+    # Check for completion signal file if pipeline is running
+    if st.session_state.pipeline_running and 'selected_topic' in st.session_state:
+        topic = st.session_state.selected_topic.replace(' ', '_')
+        signal_file = Path(Config.OUTPUT_DIR) / f"pipeline_complete_{topic}.json"
+        
+        if signal_file.exists():
+            try:
+                with open(signal_file, 'r') as f:
+                    signal_data = json.load(f)
+                
+                if signal_data["status"] == "completed":
+                    st.session_state.pipeline_results = signal_data["results"]
+                    st.session_state.pipeline_running = False
+                    st.session_state.pipeline_status = "completed"
+                    st.session_state.current_stage = "Pipeline Completed Successfully"
+                    # Clean up signal file
+                    signal_file.unlink()
+                    st.rerun()
+                    
+                elif signal_data["status"] == "error":
+                    st.session_state.pipeline_running = False
+                    st.session_state.pipeline_status = "error"
+                    st.session_state.current_stage = f"Error: {signal_data['error']}"
+                    # Clean up signal file
+                    signal_file.unlink()
+                    st.rerun()
+                    
+            except Exception as e:
+                st.error(f"Error reading pipeline status: {e}")
     
     # Current status
     st.markdown("### 🔄 Pipeline Progress")
@@ -497,6 +542,9 @@ def display_pipeline_progress():
     if st.session_state.pipeline_status == "running":
         st.markdown('<div class="info-box">🔄 Pipeline is running... Please wait for completion.</div>', 
                    unsafe_allow_html=True)
+        # Auto-refresh every 3 seconds when running
+        time.sleep(3)
+        st.rerun()
     elif st.session_state.pipeline_status == "completed":
         st.markdown('<div class="success-box">✅ Pipeline completed successfully!</div>', 
                    unsafe_allow_html=True)
