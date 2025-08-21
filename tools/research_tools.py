@@ -186,12 +186,7 @@ class ElasticsearchTool(BaseTool):
             return
             
         try:
-            # Initialize ElasticSearch client with 7.x compatibility
-            self._es_client = Elasticsearch(
-                [f"http://{Config.ELASTICSEARCH_HOST}"],
-                verify_certs=False,
-                request_timeout=30
-            )
+            self._es_client = Elasticsearch([f"http://{Config.ELASTICSEARCH_HOST}"])
             # Test connection
             self._es_client.cluster.health()
             print(f"ElasticSearch connected successfully at {Config.ELASTICSEARCH_HOST}")

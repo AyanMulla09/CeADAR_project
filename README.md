@@ -1,32 +1,21 @@
-
 # ReACT AI Research Pipeline
 
-## Overview
-This is a comprehensive research paper analysis pipeline developed for CeADAR (Centre for Applied Data Analytics Research) using ReACT (Reasoning and Acting) agents and LangChain. The system automates the entire research paper discovery, filtering, analysis, and gap identification process with intelligent agents working collaboratively to provide comprehensive research insights.
+A comprehensive research paper analysis pipeline using ReACT (Reasoning and Acting) agents and LangChain. This system automates the entire research paper discovery, filtering, analysis, and gap identification process.
 
-## 🌟 Key Features
+## 🌟 Features
 
-- **Multi-Agent ReACT Architecture**: Specialized agents for each pipeline stage using reasoning and acting paradigm
+- **Multi-Agent Architecture**: Specialized ReACT agents for each stage of the research pipeline
 - **Comprehensive Paper Discovery**: Intelligent search query generation and ArXiv integration
-- **Advanced Two-Stage Filtering**: Abstract-level and full-text analysis for precision
+- **Advanced Filtering**: Two-stage filtering (abstract-level and full-text analysis)
 - **Gap Analysis**: Automated identification of research gaps that papers address
 - **RAG System**: ElasticSearch integration with semantic embeddings for retrieval
 - **Parallel Processing**: Concurrent execution for improved performance
-- **Interactive & Command-Line Modes**: Flexible usage options
-- **Streamlit Web Interface**: Modern, user-friendly web frontend
-- **Comprehensive Export**: JSON and CSV output formats
-- **Detailed Logging**: Complete pipeline execution tracking
+- **Comprehensive Logging**: Detailed logging and error handling
 
-## Architecture
+## 🏗️ Architecture
 
-### Agent Pipeline
-```
-Research Topic → Query Generation → Paper Search → Abstract Filter → 
-PDF Download → Text Extraction → Full-text Filter → Gap Analysis → 
-ElasticSearch Indexing → RAG System Ready
-```
+### Agents Overview
 
-### Core Agents
 1. **ReACT Orchestrator**: Coordinates the entire pipeline execution
 2. **Research Topic Agent**: Elaborates topics and generates search queries
 3. **Paper Search Agent**: Searches ArXiv for relevant papers
@@ -37,131 +26,111 @@ ElasticSearch Indexing → RAG System Ready
 8. **Gap Generation Agent**: Analyzes research gaps that papers address
 9. **Embedding/Indexing Agent**: Indexes papers to ElasticSearch with embeddings
 
-## Project Structure
+### Pipeline Flow
+
+```
+Research Topic → Query Generation → Paper Search → Abstract Filter → 
+PDF Download → Text Extraction → Full-text Filter → Gap Analysis → 
+ElasticSearch Indexing → RAG System Ready
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+1. **Python 3.8+**
+2. **Ollama** with Llama3.1 model installed
+3. **ElasticSearch** running on localhost:9200 (optional, for RAG features)
+
+### Installation
+
+1. Clone or copy the project to your desired location
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Install and start Ollama with Llama3.1:
+```bash
+# Install Ollama (follow instructions for your OS)
+ollama pull llama3.1
+```
+
+4. (Optional) Start ElasticSearch for RAG features:
+```bash
+# Using Docker
+docker run -d --name elasticsearch -p 9200:9200 -e "discovery.type=single-node" elasticsearch:8.8.0
+```
+
+### Usage
+
+#### Command Line Interface
+
+```bash
+# Run full pipeline
+python main.py "Sustainable AI for Climate Change Mitigation"
+
+# Interactive mode
+python main.py
+```
+
+#### Programmatic Usage
+
+```python
+from react_agents import run_research_pipeline
+
+# Run the complete pipeline
+results = run_research_pipeline(
+    topic="Machine Learning for Healthcare",
+    max_per_query=5
+)
+
+# Access results
+papers = results["pipeline_results"]["gap_generation_agent"]["papers_with_gap_analysis"]
+```
+
+## 📁 Project Structure
+
 ```
 react_agents/
-├── agents/                     # ReACT agent implementations
-│   ├── base_agent.py          # Base ReACT agent class
+├── __init__.py                 # Package initialization
+├── main.py                     # Main application entry point
+├── config.py                   # Configuration settings
+├── requirements.txt            # Python dependencies
+├── README.md                   # This file
+├── agents/                     # ReACT agents
+│   ├── __init__.py
+│   ├── base_agent.py          # Base agent class
 │   ├── orchestrator.py        # Pipeline orchestrator
 │   ├── research_topic.py      # Topic analysis agent
-│   ├── paper_search.py        # ArXiv search agent
+│   ├── paper_search.py        # Paper search agent
 │   ├── filter.py              # Abstract filtering agent
 │   ├── description_gen.py     # Description generation agent
 │   ├── download_extract.py    # PDF download/extract agent
 │   ├── full_text_filter.py    # Full-text filtering agent
 │   ├── gap_generation.py      # Gap analysis agent
 │   └── embedding_indexing.py  # ElasticSearch indexing agent
-├── tools/                      # LangChain research tools
-│   └── research_tools.py      # ArXiv, PDF, ElasticSearch tools
-├── utils/                      # Utility functions
-│   ├── csv_export.py          # Comprehensive CSV export
-│   └── simple_csv_export.py   # Simple CSV export
-├── cache/                      # LLM response cache
-├── output/                     # Analysis results (JSON, CSV)
-├── pdf_cache/                  # Downloaded PDF files
-├── main.py                     # Main application entry point
-├── streamlit_app.py           # Streamlit web interface
-├── run_streamlit.py           # Streamlit launcher script
-├── run_streamlit.ps1          # PowerShell launcher script
-├── config.py                   # Configuration settings
-└── requirements.txt            # Python dependencies
+├── tools/                      # LangChain tools
+│   ├── __init__.py
+│   └── research_tools.py      # Research-specific tools
+└── utils/                      # Utility functions
+    └── __init__.py
 ```
 
-## Quick Start
+## ⚙️ Configuration
 
-### Prerequisites
-- **Python 3.8+**
-- **[Ollama](https://ollama.ai/)** for local LLM inference
-- **[Docker](https://www.docker.com/)** for ElasticSearch (optional)
-
-### Installation
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/AyanMulla09/CeADAR_project.git
-   cd CeADAR_project
-   ```
-
-2. Install Python dependencies:
-   ```sh
-   pip install -r requirements.txt
-   ```
-
-### Setting Up Ollama
-1. Install Ollama from [https://ollama.ai/download](https://ollama.ai/download)
-2. Pull and start the default model:
-   ```sh
-   ollama pull llama3.1
-   ollama serve
-   ```
-
-### Setting Up ElasticSearch (Optional for RAG features)
-Run ElasticSearch using Docker:
-```sh
-docker run -d --name elasticsearch -p 9200:9200 -e "discovery.type=single-node" elasticsearch:8.8.0
-```
-
-Stop ElasticSearch when done:
-```sh
-docker stop elasticsearch
-```
-
-## 📋 Usage
-
-### 🌐 Streamlit Web Interface (Recommended)
-Launch the modern web interface:
-```sh
-# Using Python launcher
-python run_streamlit.py
-
-# Or using PowerShell (Windows)
-.\run_streamlit.ps1
-
-# Or directly with streamlit
-streamlit run streamlit_app.py
-```
-
-The web interface provides:
-- **Interactive Pipeline Execution**: Run research analysis with real-time progress
-- **Configuration Management**: Adjust models, parameters, and settings
-- **Results Visualization**: Charts, metrics, and analytics
-- **History Management**: View and manage previous results
-- **Export Options**: Download JSON and CSV results
-
-### 💻 Command Line Mode
-```sh
-# Run full pipeline with a research topic
-python main.py "Machine Learning for Climate Change Mitigation"
-
-# Or specify topic in quotes
-python main.py "Sustainable AI and Energy Efficiency"
-```
-
-### 🔧 Interactive Terminal Mode
-```sh
-# Run without arguments for interactive menu
-python main.py
-```
-
-Interactive options include:
-- Run full pipeline
-- Test individual agents
-- View agent status
-- Export existing results to CSV
-- Pipeline configuration
-
-### Configuration
-Customize the pipeline by editing `config.py`:
+The system is configured through the `config.py` file. Key settings include:
 
 ```python
 class Config:
     # LLM Configuration
-    LLM_MODEL = "llama3.1"          # Change to your preferred model
+    LLM_MODEL = "llama3.1"
     LLM_TEMPERATURE = 0.1
-    MAX_TOKENS = 4000
     
-    # Pipeline Settings
-    MAX_PER_QUERY = 2               # Papers per search query
-    NUM_THREADS = 4                 # Parallel processing threads
+    # Processing Configuration
+    MAX_CHUNK_WORDS = 1500
+    OVERLAP_WORDS = 300
+    NUM_THREADS = 4
     
     # ElasticSearch Configuration
     ELASTICSEARCH_HOST = "localhost:9200"
@@ -169,54 +138,70 @@ class Config:
     EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 ```
 
-## Advanced Configuration
+## 🔧 Advanced Usage
 
-### Using Different LLM Models
-1. Pull a different model with Ollama:
-   ```sh
-   ollama pull mistral
-   # or
-   ollama pull phi3
-   ```
+### Running Individual Agents
 
-2. Update `config.py`:
-   ```python
-   LLM_MODEL = "mistral"  # or "phi3"
-   ```
-
-3. Restart Ollama if needed:
-   ```sh
-   ollama serve
-   ```
-
-### Custom ElasticSearch Setup
-For different ports or configurations:
-```sh
-# Run on different port
-docker run -d --name elasticsearch -p 9300:9200 -e "discovery.type=single-node" elasticsearch:8.8.0
-```
-
-Update `config.py`:
 ```python
-ELASTICSEARCH_HOST = "localhost:9300"
+from react_agents.agents import create_research_topic_agent
+
+# Create and use individual agents
+topic_agent = create_research_topic_agent()
+result = topic_agent.execute({
+    "topic": "Quantum Machine Learning"
+})
 ```
 
-## Output and Results
+### Custom Agent Development
 
-### Generated Files
-The pipeline creates several output files in the `output/` directory:
+Extend the `BaseReACTAgent` class to create custom agents:
 
-1. **`pipeline_results_[topic].json`**: Complete execution results with agent outputs
-2. **`papers_analysis_[topic].csv`**: Structured CSV with research gap analysis
-3. **`research_pipeline.log`**: Detailed execution logs
+```python
+from react_agents.agents.base_agent import BaseReACTAgent
+from langchain.tools import Tool
+from langchain.prompts import PromptTemplate
+
+class CustomAgent(BaseReACTAgent):
+    def __init__(self):
+        tools = [
+            Tool(
+                name="custom_tool",
+                description="Description of custom tool",
+                func=self._custom_function
+            )
+        ]
+        
+        super().__init__(
+            name="custom_agent",
+            description="Custom agent description",
+            tools=tools
+        )
+    
+    def _create_prompt_template(self) -> PromptTemplate:
+        # Define your custom prompt template
+        pass
+    
+    def execute(self, input_data):
+        # Implement your custom execution logic
+        pass
+```
+
+## 📊 Output Formats
+
+The pipeline generates several output files:
+
+1. **Pipeline Results**: Complete execution results in JSON format
+2. **Research Papers CSV**: Structured data with gap analysis
+3. **Logs**: Detailed execution logs in `research_pipeline.log`
 
 ### Sample Output Structure
+
 ```json
 {
   "status": "completed",
   "pipeline_results": {
     "research_topic_agent": {
-      "original_topic": "Machine Learning for Healthcare",
+      "original_topic": "AI for Healthcare",
       "topic_elaboration": "...",
       "search_queries": ["...", "..."]
     },
@@ -234,176 +219,69 @@ The pipeline creates several output files in the `output/` directory:
 }
 ```
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
 1. **Ollama Connection Error**
-   ```sh
-   # Ensure Ollama is running
-   ollama serve
-   
-   # Verify model is available
-   ollama list
-   ```
+   - Ensure Ollama is running: `ollama serve`
+   - Verify model is available: `ollama list`
 
 2. **ElasticSearch Connection Error**
-   ```sh
-   # Check ElasticSearch status
-   curl http://localhost:9200
-   
-   # Restart if needed
-   docker restart elasticsearch
-   ```
+   - Check ElasticSearch is running on port 9200
+   - Verify with: `curl http://localhost:9200`
 
 3. **PDF Download Failures**
    - Check internet connection
-   - Some ArXiv papers may have access restrictions
    - Verify ArXiv URLs are accessible
+   - Some papers may have restricted access
 
 4. **Memory Issues**
    - Reduce `NUM_THREADS` in config
    - Decrease `MAX_CHUNK_WORDS` for processing
-   - Process smaller batches with lower `MAX_PER_QUERY`
+   - Process smaller batches of papers
 
 ### Performance Optimization
 
-- **Parallel Processing**: Adjust `NUM_THREADS` based on your system (default: 4)
-- **Chunk Size**: Optimize `MAX_CHUNK_WORDS` for your LLM capacity (default: 1500)
-- **Caching**: The system automatically caches LLM responses in `cache/`
-- **ElasticSearch**: Use SSD storage for better indexing performance
-## Contributing
+1. **Parallel Processing**: Adjust `NUM_THREADS` based on your system
+2. **Chunk Size**: Optimize `MAX_CHUNK_WORDS` for your LLM capacity
+3. **Caching**: The system automatically caches LLM responses
+4. **ElasticSearch**: Use SSD storage for better indexing performance
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Implement your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ### Development Guidelines
-- Follow the existing ReACT agent patterns in `agents/base_agent.py`
+
+- Follow the existing code structure and patterns
 - Use type hints for better code clarity
-- Add comprehensive docstrings for all public methods
-- Implement proper error handling and logging
-- Test agents individually before integration
+- Add docstrings for all public methods
+- Implement proper error handling
+- Update the README for new features
 
-### Adding New Agents
-1. Extend `BaseReACTAgent` class
-2. Implement required abstract methods
-3. Add agent to orchestrator pipeline
-4. Update configuration if needed
+## 📝 License
 
-### Example Agent Implementation
-```python
-from agents.base_agent import BaseReACTAgent
-from langchain.tools import Tool
+This project is open source and available under the MIT License.
 
-class CustomAgent(BaseReACTAgent):
-    def __init__(self):
-        tools = [
-            Tool(
-                name="custom_tool",
-                description="Description of custom functionality",
-                func=self._custom_function
-            )
-        ]
-        
-        super().__init__(
-            name="custom_agent",
-            description="Custom agent for specific research tasks",
-            tools=tools
-        )
-    
-    def _create_prompt_template(self):
-        return PromptTemplate(
-            input_variables=["input", "chat_history", "agent_scratchpad"],
-            template="Your custom prompt template here..."
-        )
-```
+## 🙏 Acknowledgments
 
-## Research Workflow
+- Built with [LangChain](https://langchain.com/) for agent orchestration
+- Uses [Ollama](https://ollama.ai/) for local LLM inference
+- Integrates [ElasticSearch](https://www.elastic.co/) for semantic search
+- PDF processing via [PyMuPDF](https://pymupdf.readthedocs.io/)
+- Embeddings from [Sentence Transformers](https://www.sbert.net/)
 
-### Typical Research Session
-1. **Topic Analysis**: Agent elaborates your research topic
-2. **Query Generation**: Creates multiple search strategies
-3. **Paper Discovery**: Searches ArXiv with generated queries
-4. **Initial Filtering**: Filters papers based on abstracts
-5. **Content Extraction**: Downloads and extracts PDF content
-6. **Deep Analysis**: Performs full-text relevance analysis
-7. **Gap Identification**: Analyzes research gaps addressed
-8. **Knowledge Indexing**: Creates searchable knowledge base
-9. **Results Export**: Generates CSV and JSON outputs
+## 📚 Further Reading
 
-### Use Cases
-- **Literature Reviews**: Comprehensive topic analysis
-- **Research Gap Analysis**: Identify opportunities for new research
-- **Knowledge Discovery**: Find related work and methodologies
-- **Academic Research**: Systematic paper collection and analysis
-- **Industry Research**: Track developments in specific domains
-
-## Technical Details
-
-### ReACT Agent Architecture
-Each agent follows the ReACT (Reasoning and Acting) paradigm:
-- **Reasoning**: Analyzes the current state and available information
-- **Acting**: Takes specific actions using available tools
-- **Observation**: Processes results and updates understanding
-
-### LLM Integration
-- Uses Ollama for local LLM inference
-- Supports multiple models (Llama, Mistral, Phi, etc.)
-- Implements response caching for efficiency
-- Configurable temperature and token limits
-
-### Data Processing Pipeline
-- **Concurrent Processing**: Multi-threaded PDF processing
-- **Chunking Strategy**: Intelligent text segmentation
-- **Error Recovery**: Robust handling of failures
-- **Progress Tracking**: Real-time pipeline monitoring
-
-## Performance Metrics
-
-The pipeline tracks comprehensive metrics:
-- **Collection**: Papers found per query
-- **Filtering**: Relevance rates at each stage
-- **Processing**: Download success rates
-- **Analysis**: Gap analysis completion rates
-- **Indexing**: ElasticSearch indexing statistics
-
-##  Example Workflows
-
-### Climate Change Research
-```sh
-python main.py "Machine Learning for Climate Change Mitigation"
-```
-
-### Healthcare AI
-```sh
-python main.py "AI Applications in Personalized Medicine"
-```
-
-### Sustainable Computing
-```sh
-python main.py "Energy-Efficient Deep Learning Algorithms"
-```
-
-## Additional Resources
-
-### Dependencies
-- **[LangChain](https://langchain.com/)**: Agent orchestration framework
-- **[Ollama](https://ollama.ai/)**: Local LLM inference
-- **[ElasticSearch](https://www.elastic.co/)**: Search and analytics
-- **[PyMuPDF](https://pymupdf.readthedocs.io/)**: PDF processing
-- **[Sentence Transformers](https://www.sbert.net/)**: Text embeddings
-
-### Related Research
 - [ReACT Paper](https://arxiv.org/abs/2210.03629) - Original ReACT methodology
-- [LangChain Documentation](https://docs.langchain.com/) - Agent development
-- [ArXiv API](https://arxiv.org/help/api) - Paper search capabilities
-
-## License
-This project is developed for academic and research purposes at CeADAR (Centre for Applied Data Analytics Research).
-
-## Contact
-**Ayan Mulla**  
- [ayan.mulla09@gmail.com](mailto:ayan.mulla09@gmail.com)  
- CeADAR - Centre for Applied Data Analytics Research  
- [GitHub Repository](https://github.com/AyanMulla09/CeADAR_project)
+- [LangChain Documentation](https://docs.langchain.com/) - Agent development guide
+- [ElasticSearch Guide](https://www.elastic.co/guide/) - Search and analytics platform
 
 ---
 
-*For technical support, feature requests, or contributions, please create an issue in the GitHub repository.*
+For more information or support, please refer to the documentation or create an issue in the repository.
